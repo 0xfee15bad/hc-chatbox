@@ -1,5 +1,7 @@
 use HTTP::Response;
 
+use Message;
+
 package Client
 {
     sub new
