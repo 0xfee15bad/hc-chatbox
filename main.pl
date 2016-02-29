@@ -40,10 +40,6 @@ my $sWatcher = AE::io($sSock, 0, sub {
             read_cb => \&handle_read,
             write_cb => \&handle_write
         ))->init();
-#	    $cSocks{fileno($socket)} = $socket;
-#	    print "[" . fileno($socket) . "] connection opened from " . $socket->peerhost() . "\n";
-	    # works
-#        $cRWatchers{fileno($socket)} = AE::io($socket, 0, client_read(fileno($socket)));
 	}
 });
 
