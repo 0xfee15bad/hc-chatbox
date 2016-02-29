@@ -8,9 +8,12 @@ package Client
     {
         my $invocant = shift;
         my $class = ref($invocant) || $invocant;
-        my ($socket) = @_;
+        my %args = @_;
         my $self = {
-            '_socket' => $socket
+            '_socket' => $args{socket},
+            '_rCB' => $args{read_cb},
+            '_wCB' => $args{write_cb},
+            '_messageQueue' => ()
         };
         return bless($self, $class);
     }
@@ -18,20 +21,41 @@ package Client
     sub init
     {
         my $self = shift;
-        AE::io($self->getFd(), 0, \$self->handeRead);
+        AE::io($self->getFh(), 0, \$self->handleRead) if ($self->{_rCB});
+        AE::io($self->getFh(), 1, \$self->handleWrite) if ($self->{_wCB});
     }
     
-    sub handeRead
+    sub handleRead
     {
         my $self = shift;
-        print $self->getFd() . " =)\n";
+        if (my $r = $self->{_socket}->get_request())
+        {
+            if ($r->method eq 'GET')
+            {
+                $self->{_rCB}($self->getFd);
+            }
+        }
     }
     
-    sub handeWrite
+    sub handleWrite
     {
         my $self = shift;
+        if (@{$self->{_messageQueue}} > 0)
+        {
+            $self->{_wCB}($self->getFd);
+            my $res = HTTP::Response->new(200);
+            $res->content(shift(@{$self->{_messageQueue}}));
+            $self->getFh()->send_response($res);
+        }
     }
     
+    sub scheduleMessage
+    {
+        my $self = shift;
+        my ($message) = @_;
+        push(@{$self->{_messageQueue}}, $message);
+    }
+
     sub getFh
     {
         my $self = shift;
