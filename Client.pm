@@ -1,5 +1,6 @@
 use HTTP::Response;
 
+
 use Message;
 
 package Client
@@ -15,7 +16,7 @@ package Client
             '_wCB' => $args{write_cb},
             '_dCB' => $args{disconnect_cb},
             '_messageQueue' => (),
-            '_listeners' => ()
+            '_watchers' => ()
         };
         return undef if (!$self->{_socket});
         return bless($self, $class);
@@ -24,11 +25,11 @@ package Client
     sub init
     {
         my $self = shift;
-        $self->{_listeners}[0] = AE::io($self->getFh(), 0, sub
+        $self->{_watchers}[0] = AE::io($self->getFh(), 0, sub
         {
             $self->handleRead();
         }) if ($self->{_rCB});
-        $self->{_listeners}[1] = AE::io($self->getFh(), 1, sub
+        $self->{_watchers}[1] = AE::io($self->getFh(), 1, sub
         {
             $self->handleWrite();
         }) if ($self->{_wCB});
@@ -47,6 +48,7 @@ package Client
         elsif ($self->{_dCB})
         {
             $self->{_dCB}($self->getFd());
+            undef($self->{_watchers});
         }
     }
     
@@ -84,7 +86,5 @@ package Client
     sub DESTROY
     {
         my $self = shift;
-        print "[" . $self->getFd() . "] =( /\n";
-#        $self->{_socket}->close();
     }
 }1;

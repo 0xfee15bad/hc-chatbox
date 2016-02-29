@@ -27,7 +27,6 @@ sub handle_write
 sub handle_disco
 {
     my ($client_fd) = @_;
-    print "[" . $client_fd . "] disco\n";
     delete $clients{$client_fd};
 }
 
