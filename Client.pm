@@ -13,16 +13,25 @@ package Client
             '_socket' => $args{socket},
             '_rCB' => $args{read_cb},
             '_wCB' => $args{write_cb},
-            '_messageQueue' => ()
+            '_dCB' => $args{disconnect_cb},
+            '_messageQueue' => (),
+            '_listeners' => ()
         };
+        return undef if (!$self->{_socket});
         return bless($self, $class);
     }
     
     sub init
     {
         my $self = shift;
-        AE::io($self->getFh(), 0, \$self->handleRead) if ($self->{_rCB});
-        AE::io($self->getFh(), 1, \$self->handleWrite) if ($self->{_wCB});
+        $self->{_listeners}[0] = AE::io($self->getFh(), 0, sub
+        {
+            $self->handleRead();
+        }) if ($self->{_rCB});
+        $self->{_listeners}[1] = AE::io($self->getFh(), 1, sub
+        {
+            $self->handleWrite();
+        }) if ($self->{_wCB});
     }
     
     sub handleRead
@@ -32,8 +41,12 @@ package Client
         {
             if ($r->method eq 'GET')
             {
-                $self->{_rCB}($self->getFd);
+                $self->{_rCB}($self->getFd());
             }
+        }
+        elsif ($self->{_dCB})
+        {
+            $self->{_dCB}($self->getFd());
         }
     }
     
@@ -42,10 +55,10 @@ package Client
         my $self = shift;
         if (@{$self->{_messageQueue}} > 0)
         {
-            $self->{_wCB}($self->getFd);
             my $res = HTTP::Response->new(200);
             $res->content(shift(@{$self->{_messageQueue}}));
             $self->getFh()->send_response($res);
+            $self->{_wCB}($self->getFd());
         }
     }
     
@@ -66,5 +79,12 @@ package Client
     {
         my $self = shift;
         return fileno($self->getFh());
+    }
+    
+    sub DESTROY
+    {
+        my $self = shift;
+        print "[" . $self->getFd() . "] =( /\n";
+#        $self->{_socket}->close();
     }
 }1;

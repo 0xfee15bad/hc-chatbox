@@ -24,6 +24,13 @@ sub handle_write
     print "Write event from " . $client_fd . "\n";
 }
 
+sub handle_disco
+{
+    my ($client_fd) = @_;
+    print "[" . $client_fd . "] disco\n";
+    delete $clients{$client_fd};
+}
+
 my $sSock = HTTP::Daemon->new(
     LocalAddr => '127.0.0.1',
     LocalPort => 6666,
@@ -38,7 +45,8 @@ my $sWatcher = AE::io($sSock, 0, sub {
         ($clients{fileno($socket)} = Client->new(
             socket => $socket,
             read_cb => \&handle_read,
-            write_cb => \&handle_write
+            write_cb => \&handle_write,
+            disconnect_cb => \&handle_disco
         ))->init();
 	}
 });
