@@ -10,63 +10,95 @@ package Client
         my $invocant = shift;
         my $class = ref($invocant) || $invocant;
         my %args = @_;
-        my $self = {
-            '_socket' => $args{socket},
+        my $self =
+        {
+            '_sockets' =>
+            {
+                0 => $args{socket}
+            },
             '_rCB' => $args{read_cb},
             '_wCB' => $args{write_cb},
             '_dCB' => $args{disconnect_cb},
-            '_messageQueue' => (),
-            '_watchers' => ()
+            '_messageQueue' => [],
+            '_watchers' => {}
         };
-        return undef if (!$self->{_socket});
-        return bless($self, $class);
+        return (defined($self->{_sockets}{0})) ? bless($self, $class) : undef;
     }
     
     sub init
     {
         my $self = shift;
-        $self->{_watchers}[0] = AE::io($self->getFh(), 0, sub
+        
+        my ($sockIdx) = @_;
+        $sockIdx = 0 if (!defined($sockIdx));
+
+        $self->{_watchers}{$sockIdx * 2} = AE::io($self->getFh($sockIdx), 0, sub
         {
-            $self->handleRead();
+            $self->handleRead($sockIdx);
         }) if ($self->{_rCB});
-        $self->{_watchers}[1] = AE::io($self->getFh(), 1, sub
+
+        $self->{_watchers}{$sockIdx * 2 + 1} = AE::io($self->getFh($sockIdx), 1, sub
         {
-            $self->handleWrite();
+            $self->handleWrite($sockIdx);
         }) if ($self->{_wCB});
+    }
+    
+    sub addSocket
+    {
+        my $self = shift;
+        
+        my ($newSocket) = @_;
+        my $i;
+        for ($i = 0; defined($self->{_sockets}{$i}); ++$i) {}
+        $self->{_sockets}{$i} = $newSocket;
+        $self->init($i);
     }
     
     sub handleRead
     {
         my $self = shift;
-        if (my $r = $self->{_socket}->get_request())
+
+        my ($sockIdx) = @_;
+        if (my $r = $self->getFh($sockIdx)->get_request())
         {
             if ($r->method eq 'GET')
             {
-                $self->{_rCB}($self->getFd());
+                $self->{_rCB}($self->getFd($sockIdx));
             }
         }
         elsif ($self->{_dCB})
         {
-            $self->{_dCB}($self->getFd());
-            undef($self->{_watchers});
+            delete $self->{_watchers}{$sockIdx * 2};
+            delete $self->{_watchers}{$sockIdx * 2 + 1};
+            if (keys %{$self->{_sockets}} == 0)
+            {
+                $self->{_dCB}($self->getFd($sockIdx));
+            }
+            else
+            {
+                delete $self->{_sockets}{$sockIdx};
+            }
         }
     }
     
     sub handleWrite
     {
         my $self = shift;
+
+        my ($sockIdx) = @_;
         if (@{$self->{_messageQueue}} > 0)
         {
             my $res = HTTP::Response->new(200);
             $res->content(shift(@{$self->{_messageQueue}}));
-            $self->getFh()->send_response($res);
-            $self->{_wCB}($self->getFd());
+            $self->getFh($sockIdx)->send_response($res);
+            $self->{_wCB}($self->getFd($sockIdx));
         }
     }
     
     sub scheduleMessage
     {
         my $self = shift;
+
         my ($message) = @_;
         push(@{$self->{_messageQueue}}, $message);
     }
@@ -74,13 +106,17 @@ package Client
     sub getFh
     {
         my $self = shift;
-        return $self->{_socket};
+        
+        my ($sockIdx) = @_;
+        return $self->{_sockets}{$sockIdx};
     }
     
     sub getFd
     {
         my $self = shift;
-        return fileno($self->getFh());
+        
+        my ($sockIdx) = @_;
+        return fileno($self->getFh($sockIdx));
     }
     
     sub DESTROY
