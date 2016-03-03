@@ -1,0 +1,32 @@
+<html>
+    <head>
+        <title>Messing around with WebSockets :^)</title>
+        <meta charset="utf-8">
+        <script>
+            window.onload = function()
+            {
+                console.log("Connecting...");
+                var ws = new WebSocket("ws://127.0.0.1:6666");
+                ws.onopen = function()
+                {
+                    console.log("Connection established!");
+                }
+                ws.onerror = function()
+                {
+                    console.error("Connection failed, DAH!");
+                }
+                ws.onclose = function()
+                {
+                    console.warn("Connection closed.");
+                }
+                ws.onmessage = function(msgEvt)
+                {
+                    document.body.appendChild(msgEvt.data);
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <h2>Look at the console ( ͡°ل͜ ͡°)</h2>
+    </body>
+</html>
