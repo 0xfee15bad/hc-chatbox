@@ -1,8 +1,6 @@
 use HTTP::Daemon;
 use Protocol::WebSocket;
 
-print "=)/\n";
-
 my $d = HTTP::Daemon->new(
     LocalAddr => '127.0.0.1',
     LocalPort => 6666,
@@ -11,21 +9,27 @@ my $d = HTTP::Daemon->new(
 
 while (my $c = $d->accept())
 {
-    while (my $r = $c->get_request())
+    if (my $r = $c->get_request())
     {
         if ($r->method eq 'GET')
         {
-            my $hs    = Protocol::WebSocket::Handshake::Server->new;
-            my $frame = Protocol::WebSocket::Frame->new;
+            my $hs = Protocol::WebSocket::Handshake::Server->new;
+            my $frame;
             
-            $hs->parse($r->as_string);
+            $hs->parse($r->as_string());
             if ($hs->is_done)
             {
                 $c->send_response(HTTP::Response->parse($hs->to_string()));
-#                for my $i (0..9)
-#                {
-#                    print($c, "( ͡°ل͜ ͡°)");
-#                }
+                my $buf;
+                if ($c->recv($buf, 1024))
+                {
+                    my $frame = $hs->build_frame(buffer => $buf);
+                    while (defined(my $message = $frame->next))
+                    {
+                        print '-> ' . $message . "\n";
+                        $c->send($hs->build_frame(buffer => ':^)/')->to_bytes());                        
+                    }
+                }
             }
         }
     }

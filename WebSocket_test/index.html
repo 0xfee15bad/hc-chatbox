@@ -10,6 +10,7 @@
                 ws.onopen = function()
                 {
                     console.log("Connection established!");
+                    ws.send('=)/');
                 }
                 ws.onerror = function()
                 {
@@ -21,12 +22,13 @@
                 }
                 ws.onmessage = function(msgEvt)
                 {
-                    document.body.appendChild(msgEvt.data);
+                    document.getElementById('response').innerText += (msgEvt.data + "\n");
                 }
             }
         </script>
     </head>
     <body>
         <h2>Look at the console ( ͡°ل͜ ͡°)</h2>
+        <pre id="response"></pre>
     </body>
 </html>
