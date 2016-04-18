@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
     <head>
         <title>Messing around with WebSockets :^)</title>
@@ -5,12 +6,19 @@
         <script>
             window.onload = function()
             {
-                console.log("Connecting...");
-                var ws = new WebSocket("ws://127.0.0.1:6666");
+                var count = Math.floor((Math.random() * 1000)) % 10;
+                var ws = new WebSocket("ws://127.0.0.1");
+                console.log("Will send " + (count + 1) + " messages\n");
+                
+                function testSendText()
+                {
+                    ws.send(Date.now() + ': =)/');
+                }
+                
                 ws.onopen = function()
                 {
                     console.log("Connection established!");
-                    ws.send('=)/');
+                    testSendText();
                 }
                 ws.onerror = function()
                 {
@@ -22,13 +30,18 @@
                 }
                 ws.onmessage = function(msgEvt)
                 {
-                    document.getElementById('response').innerText += (msgEvt.data + "\n");
+                    var elem = document.createElement('DIV');
+                    elem.innerText = msgEvt.data;
+                    document.getElementById('response').appendChild(elem);
+                    if (count-- > 0) testSendText();
+                    else ws.close();
                 }
+                console.log(ws);
             }
         </script>
     </head>
     <body>
         <h2>Look at the console ( ͡°ل͜ ͡°)</h2>
-        <pre id="response"></pre>
+        <p id="response"></p>
     </body>
 </html>
